@@ -1,96 +1,73 @@
-# Output-Variability Experiment: LLM-orchestrated vs. Code-orchestrated
+# Output Variability: LLM-Orchestrated vs. Code-Orchestrated Pipelines
 
-Tests the hypothesis that **Option 1** (an LLM — Claude Code — with skills orchestrates
-deterministic tools + a validation loop) produces more **output variability** than **Option 2**
-(deterministic code drives the steps and calls the LLM only for cognitive sub-tasks).
+Does an LLM that *orchestrates* a multi-step task (decides the steps, calls deterministic
+tools, runs a validation loop) produce more **output variability** than a deterministic program
+that *drives* the steps and calls the LLM only for narrow cognitive sub-tasks?
 
-Both options run the **same 7-step pipeline** on the **same model + version**
-(`databricks-claude-opus-4-8`) via the **same Databricks-hosted Anthropic endpoint**, so any
-difference in output dispersion is attributable to *who orchestrates*, not the model.
+**Finding.** Across three rounds — up to **1,000 independent Option 1 runs** on a deliberately
+ambiguous, longer-horizon task — both architectures produced identical, correct graded output on
+every run (consistency 1.00, entropy 0.00, correctness 1.00). The hypothesis was **not supported**:
+variability comes from decision freedom / underspecification, not from LLM orchestration per se.
 
-## The workload (mixed modalities)
+📄 **Full write-up: [`REPORT.md`](REPORT.md)** — setup, methodology, results, interpretation, and limitations.
 
-A customer-request triage pipeline whose steps cross modality boundaries (where hand-offs break):
+## The two architectures
 
-1. **Read input** (file I/O) — `data/inbox/<case>.txt`
-2. **Extract** (cognitive) — account_id, product, quantity
-3. **Service lookup** (third-party) — `GET /account/<id>` on the local mock API → tier
-4. **Reference query** (data store) — SQLite pricebook + SLA
-5. **Compute** (arithmetic) — `total = unit_price * quantity`
-6. **Branch** (rules) — `ESCALATE` iff `tier==Enterprise AND total>10000` (long-range tier hand-off)
-7. **Write output** (file I/O) — final JSON
+- **Option 1 — LLM orchestrates.** Headless Claude Code (`claude -p`) gets a prescriptive
+  step-by-step prompt, deterministic tools (via Bash), Read/Write, and a validation loop, and
+  drives the whole pipeline.
+- **Option 2 — code orchestrates.** A Python harness runs the pipeline deterministically and calls
+  the LLM (via the `anthropic` SDK against the *same* endpoint) only for the cognitive sub-steps:
+  extract, classify, summary.
 
-In **Option 2**, steps 1/3/4/5/6 are pure code (zero variance); the LLM is called only for
-extract/classify/summary. In **Option 1**, Claude Code drives everything.
+Both run the same model + version (`databricks-claude-opus-4-8`) via the same Databricks-hosted
+Anthropic Messages API, so any difference is attributable to *who orchestrates*, not the model.
+Opus 4.8 is a reasoning model with **no configurable temperature**, so both run at the model's
+fixed sampling.
 
 ## Layout
 
 ```
-config/experiment.env      shared endpoint/model env (FILL IN after auth)
+config/experiment.env      shared endpoint/model env (fill in after auth)
 data/fixtures.json         single source of truth (accounts, pricebook, sla, rules, cases)
-data/inbox/*.txt           5 request inputs
+data/inbox/*.txt           5 request inputs (ambiguous in R2/R3)
 data/seed_db.py            builds data/refdb.sqlite
-services/mock_api.py       local mock account API (stdlib); run_service.sh starts it
+services/mock_api.py       local mock account REST service (run_service.sh starts it)
 tools/                     shared deterministic tools: http_get, db_query, calc, validate_json
-common/llm_client.py       anthropic SDK -> Databricks endpoint (Option 2 only)
-option1/                   Claude Code runner: task_prompt.md, settings.json, run_option1.sh
-option2/run_option2.py     deterministic harness (--temperature flag)
+common/llm_client.py       anthropic SDK -> Databricks endpoint (Option 2)
+option1/                   Claude Code runner: task_prompt.md, settings.json, run_*.sh
+option2/run_option2.py     deterministic harness; LLM only for extract/classify/summary
 analysis/ground_truth.py   deterministic correct answers per case
 analysis/metrics.py        consistency / entropy / correctness / failure-signature report
-.venv/                     python deps (anthropic, numpy)
 ```
 
-## Setup (one-time)
+## Reproduce
 
 ```bash
-# 0. Python deps already installed in .venv (anthropic, numpy).
-# 1. Seed the reference DB and start the mock service.
-python3 data/seed_db.py
-bash services/run_service.sh
+# one-time
+python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+python3 data/seed_db.py            # build the SQLite reference store
+bash services/run_service.sh       # start the mock account API
+databricks auth login --profile field-eng-east
+#   config/experiment.env reads a fresh OAuth token from this profile when sourced.
 
-# 2. Authenticate to Databricks and fill in config/experiment.env  (OPEN ITEM 1)
-databricks auth login --profile <profile>
-#    Set ANTHROPIC_BASE_URL to https://<workspace>.cloud.databricks.com/serving-endpoints/anthropic
-#    (or .../ai-gateway/anthropic), and export a token:
-#    export ANTHROPIC_AUTH_TOKEN="$(databricks auth token -p <profile> | jq -r .access_token)"
-```
-
-## Smoke tests (do before the pilot)
-
-```bash
 source config/experiment.env
-# Endpoint + version assertion (Option 2 path):
-./.venv/bin/python option2/run_option2.py --check          # asserts correctness @ temp 0, prints model id
-# Claude Code routes to Databricks + isolation holds (Option 1 path):
-bash option1/run_option1.sh 1 case01                       # one isolated rep; check it wrote a valid file
+
+# smoke test (asserts correctness + same model id; prints model=claude-opus-4-8)
+./.venv/bin/python option2/run_option2.py --check
+
+# a run (example: round 3)
+OUT_ROOT="$PWD/results_r3/option1_default" WORKERS=10 bash option1/run_option1.sh 200
+./.venv/bin/python option2/run_option2.py --reps 20 --workers 8 --out-dir "$PWD/results_r3/option2"
+./.venv/bin/python analysis/metrics.py --results-root results_r3
 ```
 
-If `--check` prints `model=databricks-claude-opus-4-8` and Option 1's log shows the same model, the
-"same model + version" requirement is proven.
+> Note: Opus 4.8 rejects a non-default `temperature` (HTTP 400), so there is no temperature flag —
+> both options run at the model's fixed sampling. See `REPORT.md` §5.
 
-## Run the pilot (3 conditions, K=20 × 5 cases)
+## Isolation (why Option 1 runs don't taint the driving session)
 
-```bash
-source config/experiment.env
-bash   option1/run_option1.sh 20                           # Option 1 (CC default temp)
-./.venv/bin/python option2/run_option2.py --temperature 1.0 --reps 20
-./.venv/bin/python option2/run_option2.py --temperature 0.0 --reps 20
-./.venv/bin/python analysis/metrics.py                     # comparison table
-```
-
-**Expected if the hypothesis holds:** Option 2 @ 0.0 ≈ floor (consistency ~1.0, entropy ~0);
-Option 1 shows lower consistency / higher entropy than Option 2 @ 1.0, and more hand-off failure
-signatures (notably `decision_inconsistent_with_own_fields` and `wrong_tier`).
-
-## Isolation (why Option 1 runs don't taint this session)
-
-Each `option1/run_option1.sh` rep launches `claude -p` with a fresh `CLAUDE_CONFIG_DIR` (no
-inherited user config/plugins/hooks/memory/MCP), inline 3P-auth env (never written to
-`~/.claude/settings.json`), `--setting-sources user` + explicit `--settings`, an empty
-`--mcp-config`, an `--allowedTools` allowlist of only the 4 experiment tools, and
-`--no-session-persistence`. See the plan for the full rationale.
-
-## Known limitation
-
-Claude Code does not expose a temperature setting, so Option 1 runs at CC's fixed default. Option 2
-is run at both 1.0 (sampling-matched) and 0.0 (determinism floor) to bracket it.
+Each `option1/run_one.sh` rep launches `claude -p` with a fresh `CLAUDE_CONFIG_DIR` (no inherited
+config/plugins/hooks/memory/MCP), inline 3P auth (never written to `~/.claude/settings.json`),
+`--setting-sources user` + explicit `--settings`, an empty `--mcp-config`, an `--allowedTools`
+allowlist of only the 4 experiment tools, and `--no-session-persistence`.
