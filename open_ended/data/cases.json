@@ -1,0 +1,52 @@
+{
+  "u1_rank_items": {
+    "func_name": "rank_items",
+    "entry": "solution",
+    "mode": "underspecified",
+    "files": ["solution.py"],
+    "signature": "def rank_items(items: list) -> list",
+    "corpus_seed": 2101,
+    "n_corpus": 200,
+    "timeout_s": 5.0
+  },
+  "u2_round_all": {
+    "func_name": "round_all",
+    "entry": "solution",
+    "mode": "underspecified",
+    "files": ["solution.py"],
+    "signature": "def round_all(nums: list) -> list",
+    "corpus_seed": 2102,
+    "n_corpus": 200,
+    "timeout_s": 5.0
+  },
+  "u3_top_k": {
+    "func_name": "top_k",
+    "entry": "solution",
+    "mode": "underspecified",
+    "files": ["solution.py"],
+    "signature": "def top_k(nums: list, k: int) -> list",
+    "corpus_seed": 2103,
+    "n_corpus": 200,
+    "timeout_s": 5.0
+  },
+  "m1_stats": {
+    "func_name": "summary",
+    "entry": "api",
+    "mode": "multifile_underspecified",
+    "files": ["core.py", "api.py"],
+    "signature": "def summary(nums: list) -> dict   # in api.py, importing helpers from core.py",
+    "corpus_seed": 2104,
+    "n_corpus": 200,
+    "timeout_s": 5.0
+  },
+  "m2_roman": {
+    "func_name": "to_roman",
+    "entry": "api",
+    "mode": "multifile_specified",
+    "files": ["core.py", "api.py"],
+    "signature": "def to_roman(n: int) -> str   # in api.py, importing the symbol table from core.py",
+    "corpus_seed": 2105,
+    "n_corpus": 200,
+    "timeout_s": 5.0
+  }
+}
