@@ -1,0 +1,11 @@
+Subject: SERVICE-PRO returning 500s
+
+Hi support,
+
+Account ACC-1003. Our integration against SERVICE-PRO started throwing intermittent
+500 errors overnight and it's blocking our pipeline — please have engineering
+investigate what's failing. While you're at it, quote us to renew all 3 of our
+SERVICE-PRO seats.
+
+Thanks,
+Platform team

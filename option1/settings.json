@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Bash(python3 tools/http_get.py:*)",
+      "Bash(python3 tools/db_query.py:*)",
+      "Bash(python3 tools/calc.py:*)",
+      "Bash(python3 tools/validate_json.py:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

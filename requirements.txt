@@ -1,0 +1,4 @@
+# Python dependencies for the output-variability experiment.
+# Option 2's harness and common/llm_client.py talk to the Databricks-hosted
+# Anthropic Messages API via the official SDK. Everything else is stdlib.
+anthropic>=0.40.0

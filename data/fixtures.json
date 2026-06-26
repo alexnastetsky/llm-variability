@@ -1,0 +1,70 @@
+{
+  "_comment": "Round 2: ambiguous, longer-horizon task. Cases store the CANONICAL resolved values (account_id, product, quantity); the inbox text expresses them ambiguously (vague quantities, multiple account ids, narrative red herrings). seed_db.py, mock_api.py, and analysis/ground_truth.py derive from this.",
+  "accounts": {
+    "ACC-1001": { "tier": "Enterprise", "region": "NA" },
+    "ACC-1002": { "tier": "Standard", "region": "EMEA" },
+    "ACC-1003": { "tier": "Enterprise", "region": "APAC" },
+    "ACC-1004": { "tier": "Free", "region": "NA" },
+    "ACC-1005": { "tier": "Standard", "region": "NA" }
+  },
+  "pricebook": {
+    "WIDGET-A": 50.00,
+    "WIDGET-B": 120.00,
+    "GADGET-X": 999.99,
+    "SERVICE-PRO": 2500.00,
+    "PART-7": 7.50
+  },
+  "sla_hours_by_tier": {
+    "Enterprise": 4,
+    "Standard": 24,
+    "Free": 72
+  },
+  "categories": ["billing", "technical", "sales", "complaint"],
+  "rules": {
+    "subtotal": "unit_price * quantity",
+    "volume_discount_pct": "10 if quantity >= 20 else 0",
+    "tier_discount_pct": "5 if tier == 'Enterprise' else 0",
+    "total": "round(subtotal * (1 - volume_discount_pct/100) * (1 - tier_discount_pct/100), 2)  (discounts stack)",
+    "escalate_if": "tier == 'Enterprise' AND total > escalation_threshold  (total is POST-discount)",
+    "escalation_threshold": 10000.0,
+    "account_selection": "use the account being billed / placing the order; ignore shipping, parent, or merely-referenced accounts",
+    "quantity_interpretation": "natural language ('a dozen'=12, 'two dozen'=24); a range uses the lower bound; if unstated, assume 1"
+  },
+  "cases": {
+    "case01": {
+      "account_id": "ACC-1001",
+      "product": "GADGET-X",
+      "quantity": 20,
+      "expected_category": "sales",
+      "note": "Range qty 'between 20 and 25' -> lower bound 20 (triggers volume disc). Two accounts: bill ACC-1001, ship ACC-1004 -> use ACC-1001. Enterprise, post-discount 17099.83 > 10000 -> ESCALATE."
+    },
+    "case02": {
+      "account_id": "ACC-1002",
+      "product": "WIDGET-B",
+      "quantity": 12,
+      "expected_category": "billing",
+      "note": "'a dozen' -> 12 (<20, no volume disc). 'our enterprise plan' is narrative; tier from lookup is Standard -> no tier disc -> STANDARD."
+    },
+    "case03": {
+      "account_id": "ACC-1003",
+      "product": "SERVICE-PRO",
+      "quantity": 3,
+      "expected_category": "technical",
+      "note": "Enterprise, explicit qty 3. Subtotal 7500, tier disc 5% -> 7125 < 10000 -> STANDARD. AND-edge."
+    },
+    "case04": {
+      "account_id": "ACC-1004",
+      "product": "WIDGET-A",
+      "quantity": 1,
+      "expected_category": "complaint",
+      "note": "Quantity unstated -> 1. 'please escalate!' is a narrative red herring; Free tier -> STANDARD."
+    },
+    "case05": {
+      "account_id": "ACC-1001",
+      "product": "SERVICE-PRO",
+      "quantity": 24,
+      "expected_category": "sales",
+      "note": "'two dozen' -> 24 (volume disc). Enterprise (tier disc). Post-discount 51300 > 10000 -> ESCALATE. Long-range stacking."
+    }
+  }
+}
