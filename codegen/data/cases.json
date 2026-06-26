@@ -1,0 +1,37 @@
+{
+  "case01": {
+    "func_name": "roman_to_int",
+    "signature": "def roman_to_int(s: str) -> int",
+    "corpus_seed": 1101,
+    "n_corpus": 300,
+    "timeout_s": 5.0
+  },
+  "case02": {
+    "func_name": "merge_intervals",
+    "signature": "def merge_intervals(intervals: list[list[int]]) -> list[list[int]]",
+    "corpus_seed": 1102,
+    "n_corpus": 300,
+    "timeout_s": 5.0
+  },
+  "case03": {
+    "func_name": "balanced_parens",
+    "signature": "def balanced_parens(s: str) -> bool",
+    "corpus_seed": 1103,
+    "n_corpus": 300,
+    "timeout_s": 5.0
+  },
+  "case04": {
+    "func_name": "run_length_encode",
+    "signature": "def run_length_encode(s: str) -> str",
+    "corpus_seed": 1104,
+    "n_corpus": 300,
+    "timeout_s": 5.0
+  },
+  "case05": {
+    "func_name": "int_to_base",
+    "signature": "def int_to_base(n: int, base: int) -> str",
+    "corpus_seed": 1105,
+    "n_corpus": 300,
+    "timeout_s": 5.0
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Bash(python3 tools/run_tests.py:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}
