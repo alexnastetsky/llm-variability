@@ -38,7 +38,14 @@ code is prose-like on the surface (it varies run-to-run) **but**, unlike prose, 
 So we grade a free-form artifact by its **observable behavior**, and measure variability at three
 altitudes — **text** (raw source), **structural** (AST-normalized), and **behavioral** (test +
 corpus result vector, the primary metric). Code generation also restores real decision freedom,
-making it the sharper test of the hypothesis. See [`codegen/README.md`](codegen/README.md).
+making it the sharper test of the hypothesis.
+
+**Finding:** across 200 runs (10 tasks — 5 trivial + 5 hard — × K=10 × both architectures, under 3
+prompt variants each), behavioral consistency and correctness were **1.00** for both architectures.
+Source text varied on nearly every run (text consistency down to 0.10 on the hard tasks), yet
+behavior never diverged — complexity raised *textual* variability but not *behavioral* variability.
+The hypothesis was again **not supported**. See [`codegen/README.md`](codegen/README.md) and
+[`codegen/REPORT.md`](codegen/REPORT.md).
 
 ## Shared design
 

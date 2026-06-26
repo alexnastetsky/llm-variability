@@ -5,6 +5,12 @@ The second experiment in this repo (see the [top-level README](../README.md)). S
 variability than deterministic code that **drives** and calls the LLM only for a narrow sub-task? —
 but the workload is **generating a Python function and validating it by execution**.
 
+📄 **Results: [`REPORT.md`](REPORT.md).** Across 200 runs (10 tasks × K=10 × both architectures,
+including 5 hard tasks, under 3 prompt variants each), behavioral consistency and correctness were
+**1.00** for both architectures — even though source text varied on nearly every run (text
+consistency as low as 0.10 on hard tasks). Complexity raised *textual* variability sharply but left
+*behavioral* variability at zero; the hypothesis remained unsupported.
+
 ## Why this workload
 
 The triage experiment graded a fixed structured schema and found perfect consistency. The one
@@ -38,11 +44,20 @@ sharper test of where orchestration variability might appear.
 Both use the same model/endpoint (`databricks-claude-opus-4-8`, fixed sampling) via the copied
 `config/experiment.env` + `common/llm_client.py`.
 
-## The 5 tasks
+## The 10 tasks
 
-Small, pure, deterministic functions, each with a spec (shown), a hidden reference solution, and a
-hidden named-test suite: `roman_to_int`, `merge_intervals`, `balanced_parens`, `run_length_encode`,
-`int_to_base`. See `data/specs/`, `data/reference/`, `data/tests/`, registered in `data/cases.json`.
+Small, pure, deterministic functions, each with hidden reference solution + named-test suite,
+registered in `data/cases.json`:
+
+- **Trivial baseline** (case01–05): `roman_to_int`, `merge_intervals`, `balanced_parens`,
+  `run_length_encode`, `int_to_base`.
+- **Harder tier** (case06–10): `eval_expr` (truncated-division arithmetic parser), `min_coins`
+  (coin-change DP), `kv_store_ops` (nested transactions), `wildcard_match` (glob DP), `topo_sort`
+  (lexicographically-smallest order). Each pins every ambiguity so there is one correct behavior.
+
+**Prompt variants.** Each task has 3 semantically-identical spec variants (`data/specs/<case>/v*.md`,
+generated from the authored rules in `data/specs_src/` + the verified tests by `tools/build_specs.py`).
+Reps cycle through variants so consistency is measured across prompt framings, not one fixed prompt.
 
 ## The oracle (`tools/run_tests.py`)
 
@@ -57,18 +72,21 @@ and non-allowlisted imports before running; the subprocess sets `RLIMIT_CPU`/`RL
 ## Layout
 
 ```
-data/cases.json            registry: func_name, signature, corpus_seed, timeout_s
-data/specs/*.md            spec shown to the model
+data/cases.json            registry: func_name, signature, corpus_seed, timeout_s, n_variants
+data/specs_src/*.md        authored rules per task (one per case)
+data/specs/<case>/v*.md    generated prompt variants shown to the model
 data/reference/*.py        hidden gold solutions (never shown to orchestrators)
-data/tests/*.py            hidden named test suites: TESTS = [(args, expected), ...]
+data/tests/*.py            hidden named test suites: TESTS = [(args, expected | {"__raises__": X}), ...]
 tools/corpus.py            seeded differential-testing input generators
 tools/_runner.py           subprocess entrypoint: import candidate, call func on inputs
 tools/run_tests.py         oracle: evaluate() + CLI + --selftest + --build-cache
+tools/build_specs.py       generate the per-task prompt variants from rules + verified tests
 tools/record_run.py        build the graded run JSON from final source + oracle
 option1/                   Claude Code runner: task_prompt.md, settings.json, run_*.sh
 option2/run_option2.py     deterministic harness; LLM only generates; bounded fix loop
 analysis/ground_truth.py   gold_behavior(): reference behavior = the correct identity
 analysis/metrics.py        consistency / entropy / correctness at all 3 altitudes
+analysis/by_variant.py     per-prompt-variant behavioral breakdown
 config/, common/           copied from first_attempt (self-contained)
 ```
 
