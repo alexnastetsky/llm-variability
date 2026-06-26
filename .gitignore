@@ -17,6 +17,7 @@ venv/
 **/results_r3/
 **/results_r4/
 **/results_pilot/
+**/results_full/
 
 # Codegen per-rep generated solutions and oracle caches
 codegen/**/*.solution.py

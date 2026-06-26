@@ -40,8 +40,8 @@ def _extract_code(text):
     return (m.group(1) if m else text).strip() + "\n"
 
 
-def load_spec(case_id):
-    with open(os.path.join(DATA, "specs", f"{case_id}.md")) as fh:
+def load_spec(case_id, variant="v1"):
+    with open(os.path.join(DATA, "specs", case_id, f"{variant}.md")) as fh:
         return fh.read()
 
 
@@ -56,10 +56,10 @@ def llm_generate(client, spec_text, signature, feedback=None):
     return _extract_code(text), model
 
 
-def run_pipeline(client, case_id):
+def run_pipeline(client, case_id, variant="v1"):
     """Generate -> validate -> (bounded) fix loop. Returns the graded record dict."""
     meta = CASES[case_id]
-    spec = load_spec(case_id)
+    spec = load_spec(case_id, variant)
     model_id = get_model()
     feedback = None
     rec = None
@@ -76,10 +76,10 @@ def run_pipeline(client, case_id):
             # build deterministic feedback from named failures for the next attempt
             fails = rec.get("_named_failures", [])[:8]
             feedback = "\n".join(f"- input={i} expected={e} got={g}" for i, e, g in fails)
-    return _assemble(case_id, rec, model_id, attempts)
+    return _assemble(case_id, rec, model_id, attempts, variant)
 
 
-def _assemble(case_id, rec, model_id, attempts):
+def _assemble(case_id, rec, model_id, attempts, variant):
     return {
         "case_id": case_id,
         "func_name": rec["func_name"],
@@ -92,6 +92,7 @@ def _assemble(case_id, rec, model_id, attempts):
         "_model": model_id,
         "_valid": rec["passed_named"],
         "_attempts": attempts,
+        "_variant": variant,
     }
 
 
@@ -124,14 +125,19 @@ def main():
     out_dir = args.out_dir or os.path.join(ROOT, "results", "option2")
 
     def one_run(cid, i):
+        nv = CASES[cid].get("n_variants", 3)
+        variant = f"v{i % nv + 1}"
         try:
-            rec = run_pipeline(client, cid)
+            rec = run_pipeline(client, cid, variant)
         except Exception as e:  # noqa: BLE001
-            rec = {"_error": f"{type(e).__name__}: {e}", "case_id": cid}
+            rec = {"_error": f"{type(e).__name__}: {e}", "case_id": cid, "_variant": variant}
         cdir = os.path.join(out_dir, cid)
         os.makedirs(cdir, exist_ok=True)
         with open(os.path.join(cdir, f"run_{i:03d}.json"), "w") as fh:
             json.dump(rec, fh, indent=2)
+        if rec.get("source"):  # persist generated source as a .py for inspection (parity w/ Option 1)
+            with open(os.path.join(cdir, f"run_{i:03d}.solution.py"), "w") as fh:
+                fh.write(rec["source"])
         verdict = "ERROR" if "_error" in rec else ("correct" if rec["correct"] else
                   ("valid" if rec["_valid"] else "INVALID"))
         return cid, i, verdict

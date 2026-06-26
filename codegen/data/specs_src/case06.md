@@ -1,0 +1,26 @@
+# eval_expr
+
+Evaluate an integer arithmetic expression and return its integer value.
+
+Grammar (whitespace between tokens is allowed and ignored):
+
+```
+expr   := term (('+' | '-') term)*
+term   := factor (('*' | '/' | '%') factor)*
+factor := '-' factor | '+' factor | '(' expr ')' | integer
+integer:= one or more ASCII digits 0-9
+```
+
+- Binary operators `+ - * / %` and **unary** `+`, `-`. Unary binds tighter than binary;
+  `* / %` bind tighter than `+ -`; binary operators of equal precedence are **left-associative**.
+  Unary operators are right-associative and may stack (`--3` is `3`).
+- All integer literals in the source are non-negative; a leading `-` is always the unary operator,
+  never part of the literal. Leading zeros are allowed (`"007"` means `7`).
+- Division `/` is **integer division truncated toward zero** (so `-7 / 2` is `-3`, not `-4`).
+  Modulo `%` is defined by `a % b == a - b * trunc(a / b)`, i.e. the result takes the **sign of the
+  dividend** (`-7 % 2` is `-1`, `7 % -2` is `1`). This is C/truncated semantics, NOT Python floor.
+- Division or modulo by zero raises `ZeroDivisionError`.
+- Any input that does not parse exactly under the grammar (empty string, unmatched parens, two
+  adjacent binary operators, a stray operator, `**`, letters or other non-allowed characters, or
+  **any leftover token after a complete expression** such as `"1 2"`) raises `ValueError`.
+- The value fits in normal Python int range; return a plain `int`.

@@ -17,9 +17,9 @@ sys.path.insert(0, HERE)
 import run_tests  # noqa: E402
 
 
-def build_record(case_id, solution_path, model=None, attempts=None):
+def build_record(case_id, solution_path, model=None, attempts=None, variant=None):
     if not os.path.exists(solution_path):
-        return {"_error": "no-solution", "case_id": case_id}
+        return {"_error": "no-solution", "case_id": case_id, "_variant": variant}
     rec = run_tests.evaluate(case_id, solution_path)
     return {
         "case_id": case_id,
@@ -33,6 +33,7 @@ def build_record(case_id, solution_path, model=None, attempts=None):
         "_model": model,
         "_valid": rec["passed_named"],
         "_attempts": attempts,
+        "_variant": variant,
     }
 
 
@@ -43,8 +44,9 @@ def main():
     ap.add_argument("out_path")
     ap.add_argument("--model", default=None)
     ap.add_argument("--attempts", type=int, default=None)
+    ap.add_argument("--variant", default=None)
     args = ap.parse_args()
-    rec = build_record(args.case_id, args.solution_path, args.model, args.attempts)
+    rec = build_record(args.case_id, args.solution_path, args.model, args.attempts, args.variant)
     os.makedirs(os.path.dirname(os.path.abspath(args.out_path)), exist_ok=True)
     with open(args.out_path, "w") as fh:
         json.dump(rec, fh, indent=2)

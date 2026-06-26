@@ -22,12 +22,14 @@ WORKERS="${WORKERS:-6}"
 # warm the reference corpus cache once so workers don't race to build it
 python3 "$ROOT/tools/run_tests.py" --build-cache >/dev/null
 
+# prompt variants cycle by rep index (bash 3.2-safe: no associative arrays)
 echo "Option 1: ${#CASES[@]} cases x $REPS reps, $WORKERS workers -> $OUT_ROOT"
 for c in "${CASES[@]}"; do
+  nv="$(python3 -c "import json;print(json.load(open('$ROOT/data/cases.json'))['$c'].get('n_variants',3))")"
   for i in $(seq 0 $((REPS - 1))); do
     printf -v r "run_%03d.json" "$i"
-    printf '%s\t%s\n' "$c" "$OUT_ROOT/$c/$r"
+    printf '%s\t%s\tv%s\n' "$c" "$OUT_ROOT/$c/$r" "$(( i % nv + 1 ))"
   done
-done | xargs -P "$WORKERS" -L1 bash -c 'bash "$0/option1/run_one.sh" "$1" "$2"' "$ROOT"
+done | xargs -P "$WORKERS" -L1 bash -c 'bash "$0/option1/run_one.sh" "$1" "$2" "$3"' "$ROOT"
 
 echo "Option 1 done -> $OUT_ROOT"

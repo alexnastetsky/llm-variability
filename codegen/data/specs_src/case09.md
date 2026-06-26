@@ -1,0 +1,12 @@
+# wildcard_match
+
+Return `True` iff `pattern` matches the **entire** `text` under glob semantics.
+
+- `?` matches **exactly one** arbitrary character.
+- `*` matches **any sequence** of zero or more arbitrary characters (including the empty sequence).
+- Every other character (including spaces, digits, punctuation) matches **only itself**, literally.
+  There are no escape characters and no character classes — `\`, `[`, `.` are ordinary literals.
+- Matching is **anchored at both ends**: the pattern must consume the whole text.
+- The empty pattern matches **only** the empty text. A pattern of one or more `*` (and nothing else)
+  matches **any** text including empty. `?` does **not** match the empty string.
+- Inputs are arbitrary strings (may be empty). Return a plain `bool`. This function never raises.

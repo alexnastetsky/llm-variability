@@ -11,7 +11,8 @@ cd "$ROOT"
 # shellcheck disable=SC1091
 source "$ROOT/config/experiment.env"
 
-CASE="$1"; OUT="$2"
+CASE="$1"; OUT="$2"; VARIANT="${3:-v1}"
+SPEC_PATH="$ROOT/data/specs/$CASE/$VARIANT.md"
 SOLUTION="${OUT%.json}.solution.py"
 mkdir -p "$(dirname "$OUT")"; rm -f "$OUT" "$SOLUTION"
 ISO="$(mktemp -d "${TMPDIR:-/tmp}/cc-iso-XXXXXX")"
@@ -20,6 +21,7 @@ trap 'rm -rf "$ISO"' EXIT
 PROMPT="$(cat "$ROOT/option1/task_prompt.md")"
 PROMPT="${PROMPT//\{\{CASE_ID\}\}/$CASE}"
 PROMPT="${PROMPT//\{\{SOLUTION_PATH\}\}/$SOLUTION}"
+PROMPT="${PROMPT//\{\{SPEC_PATH\}\}/$SPEC_PATH}"
 
 ALLOWED=( "Read" "Write" "Bash(python3 tools/run_tests.py:*)" )
 
@@ -41,4 +43,4 @@ claude -p "$PROMPT" \
   >"${OUT%.json}.log" 2>&1
 
 # Harness-authoritative grading: run the oracle on the model's final solution.
-python3 "$ROOT/tools/record_run.py" "$CASE" "$SOLUTION" "$OUT" --model "$ANTHROPIC_MODEL"
+python3 "$ROOT/tools/record_run.py" "$CASE" "$SOLUTION" "$OUT" --model "$ANTHROPIC_MODEL" --variant "$VARIANT"

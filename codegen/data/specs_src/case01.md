@@ -1,11 +1,5 @@
 # roman_to_int
 
-Implement:
-
-```python
-def roman_to_int(s: str) -> int
-```
-
 Convert a Roman numeral string to its integer value.
 
 - The input `s` is always a **valid**, uppercase Roman numeral in the range **1..3999**.
@@ -13,11 +7,3 @@ Convert a Roman numeral string to its integer value.
 - Standard **subtractive notation** applies: `IV`=4, `IX`=9, `XL`=40, `XC`=90, `CD`=400, `CM`=900.
   A smaller-valued symbol placed before a larger one is subtracted.
 - Return the integer value as an `int`.
-
-Examples:
-- `roman_to_int("III")` → `3`
-- `roman_to_int("IV")` → `4`
-- `roman_to_int("IX")` → `9`
-- `roman_to_int("LVIII")` → `58`
-- `roman_to_int("MCMXCIV")` → `1994`
-- `roman_to_int("MMMCMXCIX")` → `3999`

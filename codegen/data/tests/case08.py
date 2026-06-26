@@ -1,0 +1,20 @@
+# Named test suite for kv_store_ops. expected may be a value or {"__raises__": "ExcType"}.
+TESTS = [
+    (([["SET", "a", 1], ["GET", "a"]],), [1]),
+    (([["GET", "x"]],), ["NULL"]),
+    (([["SET", "a", 1], ["BEGIN"], ["SET", "a", 2], ["GET", "a"], ["ROLLBACK"], ["GET", "a"]],),
+     [2, "OK", 1]),
+    (([["SET", "a", 1], ["BEGIN"], ["DELETE", "a"], ["GET", "a"], ["COMMIT"], ["GET", "a"]],),
+     ["NULL", "OK", "NULL"]),
+    (([["SET", "a", 1], ["SET", "b", 1], ["COUNT", 1]],), [2]),
+    (([["ROLLBACK"]],), ["NO TRANSACTION"]),
+    (([["BEGIN"], ["SET", "a", 5], ["BEGIN"], ["SET", "a", 6], ["COMMIT"], ["GET", "a"]],),
+     ["OK", 6]),
+    (([["SET", "a", 1], ["SET", "a", 2], ["GET", "a"]],), [2]),
+    (([["SET", "a", 1], ["BEGIN"], ["SET", "b", 2], ["BEGIN"], ["DELETE", "a"], ["COUNT", 1],
+       ["ROLLBACK"], ["COUNT", 1], ["COMMIT"]],), [0, "OK", 1, "OK"]),
+    (([["BEGIN"], ["BEGIN"], ["SET", "a", 1], ["COMMIT"], ["GET", "a"], ["ROLLBACK"]],),
+     ["OK", 1, "NO TRANSACTION"]),
+    (([["FOO"]],), {"__raises__": "ValueError"}),
+    (([["SET", "a", True]],), {"__raises__": "ValueError"}),
+]

@@ -13,7 +13,7 @@ TOOL (run via Bash exactly as shown):
   expected-vs-got. Use the Read tool to read the spec and the Write tool to write your solution.
 
 STEPS:
-1. Read the spec file: data/specs/{{CASE_ID}}.md
+1. Read the spec file: {{SPEC_PATH}}
 2. Write your function implementation as a single Python file to: {{SOLUTION_PATH}}
    (just the function definition — no example calls, no tests, no `print`).
 3. Run the test tool: `python3 tools/run_tests.py {{CASE_ID}} {{SOLUTION_PATH}}`

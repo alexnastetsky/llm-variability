@@ -200,14 +200,21 @@ def evaluate(case_id, solution_path, timeout_s=None):
     named_results = results[:len(named)]
     corpus_results = results[len(named):]
 
-    # named tests: pass iff value present and equals expected
+    # named tests: pass iff value present and equals expected, OR (for a
+    # {"__raises__": "ExcType"} sentinel) the run raised exactly that exception type.
     test_results, named_failures = [], []
     for i, (res, exp) in enumerate(zip(named_results, named_expected)):
-        ok = ("v" in res) and (res["v"] == _canon_value(exp))
+        if isinstance(exp, dict) and "__raises__" in exp:
+            want = exp["__raises__"]
+            ok = res.get("e") == want
+            exp_str = f"raises {want}"
+        else:
+            ok = ("v" in res) and (res["v"] == _canon_value(exp))
+            exp_str = _canon_value(exp)
         test_results.append(ok)
         if not ok:
-            got = res.get("v", f"raised {res.get('e')}")
-            named_failures.append((repr(named_args[i]), _canon_value(exp), got))
+            got = res["v"] if "v" in res else f"raises {res.get('e')}"
+            named_failures.append((repr(named_args[i]), exp_str, got))
 
     # corpus: elementwise equality vs cached reference vector
     ref_results, _ = reference_corpus(case_id, timeout_s)
