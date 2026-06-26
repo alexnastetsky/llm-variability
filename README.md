@@ -47,6 +47,28 @@ behavior never diverged — complexity raised *textual* variability but not *beh
 The hypothesis was again **not supported**. See [`codegen/README.md`](codegen/README.md) and
 [`codegen/REPORT.md`](codegen/REPORT.md).
 
+### [`open_ended/`](open_ended/) — underspecified + multi-file tasks
+Both prior experiments used **fully-specified** tasks and found zero behavioral variability, with a
+shared conclusion: variability comes from *decision freedom*, not orchestration. This experiment
+tests that directly by **removing the specification** — tasks that admit many correct behaviors
+(unspecified tie-breaks, rounding modes, output order/schema) plus multi-file tasks. Grading flips
+from "match the reference" to **"do runs converge or diverge?"** (count distinct behavioral
+fingerprints among contract-valid runs).
+
+**Finding:** divergence finally appears — and **only** here (the fully-specified control and the two
+prior experiments show none). Crucially, **Option 1 (Claude Code) diverged more than Option 2** on
+underspecified tasks (e.g. it split between banker's and half-up rounding where Option 2 stayed
+consistent) — the **first evidence supporting the original hypothesis**. The divergence is in
+conventions/representation (rounding mode, dict keys, int-vs-float), not correctness — every run was
+valid. See [`open_ended/README.md`](open_ended/README.md) and [`open_ended/REPORT.md`](open_ended/REPORT.md).
+
+### The arc
+Fully-specified structured pipeline (`first_attempt`) → fully-specified code generation, incl. hard
+tasks (`codegen`) → **underspecified + multi-file** (`open_ended`). Variability stays at zero until
+the spec leaves room; then it appears, and LLM orchestration produces more of it than code
+orchestration. Underspecification — not LLM orchestration alone — is the driver, and orchestration
+amplifies it.
+
 ## Shared design
 
 Each experiment is **self-contained** (its own `config/`, `common/`, tools, runners, analysis) so
@@ -56,8 +78,9 @@ and `analysis/metrics.py` (consistency / normalized entropy / correctness / fail
 the math is workload-agnostic; only the per-run *grading identity* differs).
 
 ```
-first_attempt/   the triage-pipeline experiment (moved here intact)
-codegen/         the code-generation experiment
+first_attempt/   the triage-pipeline experiment (fully specified)
+codegen/         the code-generation experiment (fully specified, incl. hard tasks)
+open_ended/      underspecified + multi-file tasks (where divergence appears)
 requirements.txt single dependency: anthropic
 ```
 
