@@ -55,15 +55,16 @@ tests that directly by **removing the specification** — tasks that admit many 
 from "match the reference" to **"do runs converge or diverge?"** (count distinct behavioral
 fingerprints among contract-valid runs).
 
-**Finding:** divergence finally appears — and **only** here (the fully-specified control and the two
-prior experiments show none). At K=20 over 11 tasks (440 runs, all valid), divergence showed up on 6
-tasks, and **Option 1 (Claude Code) diverged on more axes than Option 2 — 5 tasks vs 2** — the
-strongest support yet for the original hypothesis (e.g. it split between banker's and half-up
-rounding where Option 2 stayed consistent). The divergence is in conventions/representation (rounding
-mode, numeric type, output schema, truthy vocabulary), not correctness, and splits are usually
-lopsided (a strong default deviated from occasionally). It's a tendency, not a law — one task
-diverged only under Option 2. See [`open_ended/README.md`](open_ended/README.md) and
-[`open_ended/REPORT.md`](open_ended/REPORT.md).
+**Finding:** divergence finally appears — and **only** here (the fully-specified controls and the two
+prior experiments show none). At K=30 over 18 tasks (1080 runs, all valid — numeric, text, and
+multi-file), divergence showed up on 6 underspecified tasks, and **Option 1 (Claude Code) diverged on
+more axes than Option 2 — 5 vs 4** — the strongest support yet for the original hypothesis (e.g. it
+split between banker's and half-up rounding, and split acronym runs differently, where Option 2 stayed
+consistent). The divergence is in conventions/representation (rounding mode, numeric type, output
+schema, capitalization), not correctness, and splits are usually lopsided. Option 1 was also **~7×
+slower per run** (full agent loop vs one generation call). It's a tendency, not a law — two tasks
+diverged only under Option 2. Tasks are named `u##` (underspecified) and `ctl##` (control). See
+[`open_ended/README.md`](open_ended/README.md) and [`open_ended/REPORT.md`](open_ended/REPORT.md).
 
 ### The arc
 Fully-specified structured pipeline (`first_attempt`) → fully-specified code generation, incl. hard
