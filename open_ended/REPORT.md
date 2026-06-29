@@ -1,132 +1,175 @@
-# Open-Ended Tasks: where output variability finally appears
+# Output Variability on Underspecified Coding Tasks
 
-**Question.** The first two experiments (fully-specified triage pipeline; fully-specified code
-generation) found **no** behavioral variability and no gap between LLM-orchestrated (Option 1) and
-code-orchestrated (Option 2) execution — concluding that variability comes from *decision freedom /
-underspecification*, not from LLM orchestration per se. This experiment tests that directly by
-**removing the specification**: tasks that admit many correct behaviors, each isolating one
-ambiguity axis, plus multi-file tasks. Does behavioral divergence now appear, and does **LLM
-orchestration produce more of it than code orchestration**?
+**Question.** When a task leaves real decisions open, do repeated runs of the same model converge on
+one behavior or diverge across several? And does it matter **who orchestrates** the work — an LLM
+agent that drives its own generate-and-validate loop, versus a deterministic program that calls the
+model only to generate code?
 
-**Finding (headline).** Divergence appears — **and only here** (the fully-specified control
-`m2_roman`, and the two prior experiments, show none). At K=20 over 11 tasks (440 runs), **every
-run was valid** (no wrong answers — only different *acceptable* choices). Divergence showed up on
-**6 of the 11 tasks**, and **Option 1 (Claude Code) diverged on more axes than Option 2 — 5 tasks
-vs 2** — the strongest support yet for the original hypothesis. The split is usually lopsided (the
-model has a strong default convention it deviates from occasionally), and the divergence is in
-*conventions and representation* — rounding mode, numeric type, output schema, truthy vocabulary —
-never in the computed values.
+We compare two architectures on the same tasks, same model (`databricks-claude-opus-4-8`, fixed
+sampling), same endpoint:
+
+- **Option 1 — LLM-orchestrated.** A headless coding agent (Claude Code) reads the spec, writes the
+  solution file(s), runs the validation tool, and fixes in a loop until it passes — the agent
+  decides each step.
+- **Option 2 — code-orchestrated.** A deterministic Python harness drives the loop and calls the
+  model only to generate the source; a fixed protocol re-prompts on failure.
+
+Each of **11 tasks** is run **K=20 times per architecture** (440 runs total). Every task is
+deliberately **underspecified** along exactly one axis (e.g. how to break a tie, which rounding
+convention), except one fully-specified control.
+
+**Headline.** Every run produced a *valid* (acceptable) solution — there were no wrong answers.
+What varied was *which* acceptable behavior. Divergence appeared on **6 of 11 tasks**, and the
+**LLM-orchestrated agent (Option 1) diverged on more axes than the code-orchestrated harness
+(Option 2): 5 tasks vs 2.** Splits are usually lopsided — a dominant default the model departs from
+occasionally — and the differences are in *conventions and output representation* (rounding mode,
+numeric type, schema, truthy vocabulary), never in the computed values.
 
 ---
 
-## 1. Setup
+## How divergence is measured
 
-- **Model / endpoint:** `databricks-claude-opus-4-8`, fixed sampling, same Databricks-hosted
-  Anthropic endpoint and per-rep isolation as the other experiments.
-- **Two architectures:** Option 1 (headless `claude -p` writes the solution file(s), runs the
-  oracle, loops until valid, in isolation) vs Option 2 (deterministic harness; the LLM only
-  generates source; bounded fix loop). Same model by construction.
-- **11 tasks** (`data/cases.json`), **K=20** per task per condition (440 runs total):
-  - **9 underspecified single-file tasks**, each isolating one ambiguity axis (see table).
-  - **`m1_stats`** — a multi-file (`core.py`+`api.py`) underspecified task (a stats `summary` dict).
-  - **`m2_roman`** — a multi-file **fully-specified control** (`to_roman`): one correct behavior.
+There is no single correct answer for an underspecified task, so each task ships:
 
-## 2. Methodology — grading divergence, not correctness
+- a permissive **contract** — a checker for whether an output is *acceptable* (e.g. for "rank by
+  score", the result must be a permutation ordered by non-increasing score; tie order is free).
+  **Validity** = the fraction of runs whose outputs satisfy the contract on every one of 200 fixed,
+  seeded corpus inputs.
+- a **behavioral fingerprint** — a hash of a run's output vector over that fixed corpus. Two runs
+  with the same fingerprint chose the same behavior; **distinct fingerprints = the runs diverged**.
 
-There is no single correct answer, so grading flips:
-- **Validity** — does the candidate satisfy a permissive per-task **contract** (`data/contracts/`)
-  on every one of 200 seeded corpus inputs? This replaces "correctness."
-- **Behavioral fingerprint** — a hash of the candidate's output vector over the fixed corpus. Same
-  fingerprint = same behavior; **distinct fingerprints across runs = divergence**. The headline
-  metric is the number of distinct fingerprints among valid runs (`analysis/metrics.py`); the
-  diverging axis and split are auto-characterized by `analysis/divergence.py` (which replays one
-  representative per behavior group and reports the first corpus input on which they disagree).
-- A candidate is a directory of one or more files; the oracle imports the entry module in an
-  isolated subprocess (multi-file solutions use absolute imports).
+The headline number per task is the count of **distinct behaviors among valid runs** (1 = perfect
+convergence). Each solution is run in an isolated subprocess; multi-file solutions are imported by
+their entry module.
 
-## 3. Results — diverging axis and split per task
+---
 
-Cells are `<distinct behaviors among valid runs> (split of the K=20 runs)`. Validity was **1.00**
-on every task in both conditions.
+## Results per task
 
-| task | diverging axis | Option 1 | Option 2 |
-|---|---|---|---|
-| `u1_rank_items` | tie-break order among equal scores | 1 | 1 |
-| `u2_round_all` | half-value rounding convention | **2** (19:1) | 1 |
-| `u3_top_k` | order of the returned k largest | **2** (19:1) | 1 |
-| `u4_dedup` | order / which duplicate kept | 1 | 1 |
-| `u5_argmax` | index when the max is tied | 1 | 1 |
-| `u6_median` | even-length convention / numeric type | **2** (15:5) | 1 |
-| `u7_most_common` | which element when modes are tied | 1 | **2** (17:3) |
-| `u8_top_k_indices` | indices on value ties + order | 1 | 1 |
-| `u9_parse_bool` | truthy vocabulary (non-canonical strings) | **2** (19:1) | 1 |
-| `m1_stats` (multi-file) | output schema / representation | **2** (10:10) | **4** (9:5:5:1) |
-| `m2_roman` (control) | none — fully specified | 1 | 1 |
+`behaviors` = distinct behaviors among the 20 valid runs; `split` = how the 20 runs distributed;
+`consistency` = share in the most common behavior (1.00 = identical every run).
 
-**Tasks that diverged: Option 1 → 5 (`u2,u3,u6,u9,m1`); Option 2 → 2 (`u7,m1`).**
+| task | what it does | diverging axis | Option 1 (LLM) | Option 2 (code) |
+|---|---|---|---|---|
+| `u1_rank_items` | rank names by score | tie-break order among equal scores | 1 @ 1.00 | 1 @ 1.00 |
+| `u2_round_all` | round numbers to ints | half-value rounding convention | **2** (19:1) @ 0.95 | 1 @ 1.00 |
+| `u3_top_k` | the k largest values | order of the returned values | **2** (19:1) @ 0.95 | 1 @ 1.00 |
+| `u4_dedup` | remove duplicates | order / which occurrence kept | 1 @ 1.00 | 1 @ 1.00 |
+| `u5_argmax` | index of the maximum | index when the max is tied | 1 @ 1.00 | 1 @ 1.00 |
+| `u6_median` | the median | even-length convention / numeric type | **2** (15:5) @ 0.75 | 1 @ 1.00 |
+| `u7_most_common` | most frequent value | which element when modes tie | 1 @ 1.00 | **2** (17:3) @ 0.85 |
+| `u8_top_k_indices` | indices of the k largest | which indices on ties + order | 1 @ 1.00 | 1 @ 1.00 |
+| `u9_parse_bool` | string → boolean | truthy vocabulary for odd strings | **2** (19:1) @ 0.95 | 1 @ 1.00 |
+| `m1_stats` | summary-stats dict (2 files) | output schema / representation | **2** (10:10) @ 0.50 | **4** (9:5:5:1) @ 0.45 |
+| `m2_roman` | integer → Roman numeral (2 files) | none — fully specified (control) | 1 @ 1.00 | 1 @ 1.00 |
 
-**What diverged, concretely** (from `analysis/divergence.py`):
-- **`u2_round_all`** (Opt 1): `4.5 → 4` (half-to-even, 19 runs) vs `4.5 → 5` (half-up, 1 run). A
-  genuine *value* difference. Option 2 used one convention on all 20.
-- **`u3_top_k`** (Opt 1): returned the k largest **sorted descending** (19) vs **in original input
-  order** (1). An ordering choice.
-- **`u6_median`** (Opt 1): odd-length median returned as **float `7.0`** (15) vs **int `7`** (5) —
-  same value, different numeric *type*.
-- **`u9_parse_bool`** (Opt 1): `"on" → True` (19) vs `"on" → False` (1) — a genuine semantic
-  (vocabulary) difference on a non-canonical string.
-- **`m1_stats`** (Opt 1): identical stats, but **with a `count` key** (10) vs **without** (10) — an
-  output-schema choice; the most evenly split of any task.
-- **`u7_most_common`** (Opt 2): mode-tie resolved to the **first-encountered** element (17) vs a
-  **different tied element** (3). Notably this is the one task where **Option 2 diverged but Option
-  1 did not**.
-- **`m1_stats`** (Opt 2): four behaviors from crossing two representation choices — keys `min`/`max`
-  vs `minimum`/`maximum`, and odd-length median `15.0` vs `15`.
+**Diverged: Option 1 on 5 tasks (`u2, u3, u6, u9, m1`); Option 2 on 2 tasks (`u7, m1`).** Validity
+was 1.00 on every task in both architectures. The fully-specified control (`m2_roman`) and four
+single-axis tasks (`u1, u4, u5, u8`) showed no divergence at all.
 
-## 4. Interpretation
+---
 
-1. **Underspecification is the source of variability — shown by construction, across many tasks.**
-   Divergence appears only on underspecified tasks; the fully-specified control and both prior
-   experiments are flat. This nails the cross-experiment thesis.
-2. **LLM orchestration amplifies it (the hypothesis, supported).** Option 1 diverged on **5** axes
-   to Option 2's **2**. Given the same model and tasks, the Claude Code agent makes inconsistent
-   free-choices where the bare generation call is internally consistent (`u2,u3,u6,u9`). This is
-   the effect the first two experiments were built to find and couldn't, because their tasks were
-   fully specified.
-3. **But it is a tendency, not a law.** `u7_most_common` is a counterexample: only **Option 2**
-   diverged. And **4 of 9** single-axis tasks (`u1,u4,u5,u8`) never diverged in either condition —
-   the model has a strong shared default for some choices (e.g. argmax → first index, dedup →
-   first-seen order) and reliably picks it.
-4. **Splits are lopsided; defaults are strong.** Most divergent tasks split ~19:1 or 15:5 — a
-   dominant convention with occasional deviation — rather than a coin-flip. The exception is the
-   multi-file schema task (`m1`, 10:10 / 9:5:5:1), where there is no single obvious packaging.
-5. **The divergence is in conventions/representation, not correctness.** Validity was 1.00
-   everywhere. What varied was *which* acceptable convention (rounding mode, truthy vocabulary),
-   *how* a result was typed (`7` vs `7.0`), or *how* it was packaged (key names, extra keys) — the
-   ungoverned surface, exactly as the triage experiment's free-text `summary`.
-6. **Multi-file structure alone does not cause divergence** — the specified `m2_roman` control was
-   1@1.00 in both conditions; divergence tracked underspecification, not file count.
+## Examples of divergence
 
-## 5. Limitations / threats to validity
+### `u2_round_all` — half-value rounding convention (Option 1: 19 vs 1)
+Most runs round halves to even; one run rounds halves up.
+```
+input [6.0, 4.5, 8.75, 10.25, 3.0]
+  19 runs -> [6, 4, 9, 10, 3]      # 4.5 -> 4  (round half to even)
+   1 run  -> [6, 5, 9, 10, 3]      # 4.5 -> 5  (round half up)
+```
+*A genuine value difference.* Option 2 used one convention on all 20 runs.
 
-- **K=20, 11 tasks, one model.** Enough to show the effect and a clear Option-1 > Option-2 axis
-  count (5 vs 2), but the per-task splits are noisy at K=20 and the rare deviations (the "1" in
-  19:1) would need larger K to estimate reliably.
-- **The contract defines "valid."** A stricter/looser contract changes validity, not the
-  fingerprint counts. The contracts accept the obvious acceptable behaviors and key aliases.
-- **Fingerprints are representation-sensitive** (e.g. `7` vs `7.0`, an extra `count` key count as
-  distinct behaviors). That is intentional — output representation is observable behavior — but it
-  means "divergence" includes representational, not only computational, differences. The
-  per-axis characterization in §3 distinguishes the two.
-- **Fix-loop asymmetry** (Option 1 model-driven, Option 2 fixed protocol) biases validity, not the
-  divergence comparison among valid runs.
+### `u3_top_k` — order of the returned k largest (Option 1: 19 vs 1)
+```
+input nums=[0, 4, 2, 3, 4, 0, 5], k=7
+  19 runs -> [5, 4, 4, 3, 2, 0, 0]   # sorted descending
+   1 run  -> [0, 4, 2, 3, 4, 0, 5]   # left in original input order
+```
 
-## 6. Reproduce
+### `u6_median` — numeric type of the result (Option 1: 15 vs 5)
+The median *value* always agrees; the runs disagree on its **type** for odd-length inputs.
+```
+input [5, 11, 4, 7, 8]
+  15 runs -> 7.0    (float)
+   5 runs -> 7      (int)
+```
+
+### `u9_parse_bool` — truthy vocabulary for non-canonical strings (Option 1: 19 vs 1)
+"true"/"false" are pinned; strings like "on"/"yes" are free.
+```
+input "on"            input "yes"
+  19 runs -> true       19 runs -> true
+   1 run  -> false       1 run  -> false
+```
+
+### `u7_most_common` — which element when modes tie (Option 2: 17 vs 3)
+The only task where the **code-orchestrated** harness diverged but the LLM agent did not.
+```
+input [3, 2, 0, 2, 3, 0, 1]      # 3, 2, and 0 each appear twice
+  17 runs -> 3      # first to reach the max count
+   3 runs -> 2      # a different tied element
+```
+
+### `m1_stats` — output schema / representation (Option 1: 10 vs 10; Option 2: four behaviors)
+The statistics agree numerically; the *returned dict* differs. The most evenly split task.
+```
+input [16, 6, 15]
+Option 1:
+  10 runs -> {"count": 3, "max": 16, "mean": 12.333…, "median": 15, "min": 6}   # adds a "count" key
+  10 runs -> {           "max": 16, "mean": 12.333…, "median": 15, "min": 6}    # no "count" key
+Option 2 (crossing two choices — key names × median type):
+   9 runs -> {"max": …, "median": 15.0, "min": …}          # min/max,        median float
+   5 runs -> {"maximum": …, "median": 15.0, "minimum": …}  # minimum/maximum, median float
+   5 runs -> {"maximum": …, "median": 15,   "minimum": …}  # minimum/maximum, median int
+   1 run  -> {"max": …, "median": 15,   "min": …}          # min/max,        median int
+```
+
+---
+
+## Observations
+
+1. **Underspecification, not the model's competence, is what lets variability appear.** Every run
+   was valid; the fully-specified control never diverged. The model only "disagrees with itself"
+   where the task genuinely leaves a choice open.
+2. **The LLM-orchestrated agent diverges on more axes (5 vs 2).** Given the same task and model, the
+   agent makes inconsistent free-choices (rounding mode, output order, numeric type, vocabulary)
+   where the bare generation harness is internally consistent. Driving the task through an agent —
+   with its own prompt, tools, and multi-step loop — adds variability to the unconstrained decisions.
+3. **It is a tendency, not a rule.** `u7_most_common` diverged only under the code-orchestrated
+   harness, and four single-axis tasks (`u1, u4, u5, u8`) never diverged in either architecture —
+   the model has a strong, reliable default for some choices (e.g. argmax → first index, dedup →
+   first-seen order).
+4. **Splits are lopsided.** Most divergent tasks split ~19:1 or 15:5: a dominant convention with
+   occasional deviation, not a coin flip. The exception is the multi-file summary-stats task, where
+   there is no single obvious way to name keys or type the median.
+5. **The variability is in conventions and representation, not correctness.** What changes between
+   runs is *which* acceptable convention (half-even vs half-up), *how* a value is typed (`7` vs
+   `7.0`), or *how* a result is packaged (key names, an extra `count` key) — never a wrong answer.
+
+---
+
+## Limitations
+
+- **K=20, 11 tasks, one model.** Enough to demonstrate the effect and a clear Option-1 > Option-2
+  axis count, but the rare deviations (the "1" in a 19:1 split) are noisy and would need larger K to
+  estimate reliably.
+- **The contract defines "valid."** A stricter or looser contract changes validity, not the
+  behavior counts. The contracts here accept the obvious acceptable behaviors and common key aliases.
+- **Fingerprints are representation-sensitive** — `7` vs `7.0`, or an extra dict key, count as
+  distinct behaviors. That is intentional (output representation is observable behavior), but it
+  means "divergence" includes representational, not only computational, differences; the per-task
+  examples above make the distinction explicit.
+
+---
+
+## Reproduce
 
 ```bash
 pip install -r ../requirements.txt
-python3 tools/run_tests.py --selftest          # all 11 references satisfy their own contracts
+python3 tools/run_tests.py --selftest          # every reference solution satisfies its own contract
 source config/experiment.env
-python3 option2/run_option2.py --check         # one generation/task; prints model + fingerprint
+python3 option2/run_option2.py --check         # one generation per task; prints the model id
 
 python3 option2/run_option2.py --reps 20 --workers 8 --out-dir "$PWD/results_full/option2"
 OUT_ROOT="$PWD/results_full/option1_default" WORKERS=5 bash option1/run_option1.sh 20
@@ -134,5 +177,4 @@ python3 analysis/metrics.py     --results-root results_full   # validity / disti
 python3 analysis/divergence.py  --results-root results_full   # diverging axis + split, with examples
 ```
 
-Run outputs (`results_full/`, including each run's saved solution directory) are git-ignored and
-regenerated by the steps above.
+Run outputs are regenerated by these steps.
