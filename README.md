@@ -56,11 +56,14 @@ from "match the reference" to **"do runs converge or diverge?"** (count distinct
 fingerprints among contract-valid runs).
 
 **Finding:** divergence finally appears — and **only** here (the fully-specified control and the two
-prior experiments show none). Crucially, **Option 1 (Claude Code) diverged more than Option 2** on
-underspecified tasks (e.g. it split between banker's and half-up rounding where Option 2 stayed
-consistent) — the **first evidence supporting the original hypothesis**. The divergence is in
-conventions/representation (rounding mode, dict keys, int-vs-float), not correctness — every run was
-valid. See [`open_ended/README.md`](open_ended/README.md) and [`open_ended/REPORT.md`](open_ended/REPORT.md).
+prior experiments show none). At K=20 over 11 tasks (440 runs, all valid), divergence showed up on 6
+tasks, and **Option 1 (Claude Code) diverged on more axes than Option 2 — 5 tasks vs 2** — the
+strongest support yet for the original hypothesis (e.g. it split between banker's and half-up
+rounding where Option 2 stayed consistent). The divergence is in conventions/representation (rounding
+mode, numeric type, output schema, truthy vocabulary), not correctness, and splits are usually
+lopsided (a strong default deviated from occasionally). It's a tendency, not a law — one task
+diverged only under Option 2. See [`open_ended/README.md`](open_ended/README.md) and
+[`open_ended/REPORT.md`](open_ended/REPORT.md).
 
 ### The arc
 Fully-specified structured pipeline (`first_attempt`) → fully-specified code generation, incl. hard

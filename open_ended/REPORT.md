@@ -2,110 +2,121 @@
 
 **Question.** The first two experiments (fully-specified triage pipeline; fully-specified code
 generation) found **no** behavioral variability and no gap between LLM-orchestrated (Option 1) and
-code-orchestrated (Option 2) execution. Their shared conclusion: variability comes from *decision
-freedom / underspecification*, not from LLM orchestration per se. This experiment tests that
-directly by **removing the specification** — using tasks that admit *many* correct behaviors — and
-asks: does behavioral divergence now appear, and does **LLM orchestration produce more of it than
-code orchestration**?
+code-orchestrated (Option 2) execution — concluding that variability comes from *decision freedom /
+underspecification*, not from LLM orchestration per se. This experiment tests that directly by
+**removing the specification**: tasks that admit many correct behaviors, each isolating one
+ambiguity axis, plus multi-file tasks. Does behavioral divergence now appear, and does **LLM
+orchestration produce more of it than code orchestration**?
 
-**Finding (headline).** Divergence finally appears — **and only here.** On underspecified tasks,
-runs made *different valid choices*; on the fully-specified control (`m2_roman`) and in the two
-prior experiments, they did not. Crucially, **Option 1 (Claude Code orchestrates) diverged more
-than Option 2 (code orchestrates)** on 2 of 3 single-file underspecified tasks — the **first
-evidence supporting the original hypothesis**. The divergence is concentrated in *conventions and
-output representation* (rounding mode, dict key names, int-vs-float), not correctness: **every one
-of the 100 runs was valid** (satisfied the task contract).
+**Finding (headline).** Divergence appears — **and only here** (the fully-specified control
+`m2_roman`, and the two prior experiments, show none). At K=20 over 11 tasks (440 runs), **every
+run was valid** (no wrong answers — only different *acceptable* choices). Divergence showed up on
+**6 of the 11 tasks**, and **Option 1 (Claude Code) diverged on more axes than Option 2 — 5 tasks
+vs 2** — the strongest support yet for the original hypothesis. The split is usually lopsided (the
+model has a strong default convention it deviates from occasionally), and the divergence is in
+*conventions and representation* — rounding mode, numeric type, output schema, truthy vocabulary —
+never in the computed values.
 
 ---
 
 ## 1. Setup
 
 - **Model / endpoint:** `databricks-claude-opus-4-8`, fixed sampling, same Databricks-hosted
-  Anthropic endpoint and isolation discipline as the other experiments.
+  Anthropic endpoint and per-rep isolation as the other experiments.
 - **Two architectures:** Option 1 (headless `claude -p` writes the solution file(s), runs the
-  oracle, loops until valid, in strict isolation) vs Option 2 (deterministic harness; the LLM only
+  oracle, loops until valid, in isolation) vs Option 2 (deterministic harness; the LLM only
   generates source; bounded fix loop). Same model by construction.
-- **5 tasks** (`data/cases.json`), K=10 per task per condition (100 runs total):
-  - **Underspecified, single-file:** `rank_items` (rank by score; **tie order unspecified**),
-    `round_all` (round to nearest; **half-rounding unspecified**), `top_k` (k largest; **output
-    order unspecified**).
-  - **Multi-file, underspecified:** `m1_stats` — a two-file package (`core.py` + `api.py`) exposing
-    `summary(nums)`; **key names, median-even convention, mean rounding, extra keys all free**.
-  - **Multi-file, fully-specified (control):** `m2_roman` — a two-file package exposing
-    `to_roman(n)`; exactly one correct behavior. Tests whether multi-file *structure alone* induces
-    divergence (it should not).
+- **11 tasks** (`data/cases.json`), **K=20** per task per condition (440 runs total):
+  - **9 underspecified single-file tasks**, each isolating one ambiguity axis (see table).
+  - **`m1_stats`** — a multi-file (`core.py`+`api.py`) underspecified task (a stats `summary` dict).
+  - **`m2_roman`** — a multi-file **fully-specified control** (`to_roman`): one correct behavior.
 
 ## 2. Methodology — grading divergence, not correctness
 
-There is no single correct answer for an underspecified task, so the grading model flips:
-- **Validity** — does the candidate satisfy a permissive task **contract** (`data/contracts/`) on
-  every one of ~200 seeded corpus inputs? (e.g. `rank_items`: output is a permutation ordered by
-  non-increasing score — *ties in any order*; `round_all`: each value rounds to a neighbor, halves
-  either way). This replaces "correctness."
-- **Behavioral fingerprint** — a hash of the candidate's output vector over the fixed seeded corpus.
-  Two runs with the **same** fingerprint chose the same behavior; **different** fingerprints means
-  the runs *diverged* on the free choices. The headline metric is the number of **distinct
-  fingerprints among valid runs** (`analysis/metrics.py`).
-- The oracle (`tools/run_tests.py`) runs each candidate — a directory of one or more files — in an
-  isolated subprocess, importing the entry module (multi-file solutions use absolute imports).
+There is no single correct answer, so grading flips:
+- **Validity** — does the candidate satisfy a permissive per-task **contract** (`data/contracts/`)
+  on every one of 200 seeded corpus inputs? This replaces "correctness."
+- **Behavioral fingerprint** — a hash of the candidate's output vector over the fixed corpus. Same
+  fingerprint = same behavior; **distinct fingerprints across runs = divergence**. The headline
+  metric is the number of distinct fingerprints among valid runs (`analysis/metrics.py`); the
+  diverging axis and split are auto-characterized by `analysis/divergence.py` (which replays one
+  representative per behavior group and reports the first corpus input on which they disagree).
+- A candidate is a directory of one or more files; the oracle imports the entry module in an
+  isolated subprocess (multi-file solutions use absolute imports).
 
-## 3. Results
+## 3. Results — diverging axis and split per task
 
-**Distinct behaviors among valid runs (K=10), and modal behavioral consistency:**
+Cells are `<distinct behaviors among valid runs> (split of the K=20 runs)`. Validity was **1.00**
+on every task in both conditions.
 
-| task | mode | Option 1 | Option 2 |
+| task | diverging axis | Option 1 | Option 2 |
 |---|---|---|---|
-| `u1_rank_items` | underspecified | **2** @ 0.90 | 1 @ 1.00 |
-| `u2_round_all` | underspecified | **2** @ 0.70 | 1 @ 1.00 |
-| `u3_top_k` | underspecified | 1 @ 1.00 | 1 @ 1.00 |
-| `m1_stats` | multi-file, underspecified | **3** @ 0.50 | **3** @ 0.60 |
-| `m2_roman` | multi-file, **specified** (control) | 1 @ 1.00 | 1 @ 1.00 |
+| `u1_rank_items` | tie-break order among equal scores | 1 | 1 |
+| `u2_round_all` | half-value rounding convention | **2** (19:1) | 1 |
+| `u3_top_k` | order of the returned k largest | **2** (19:1) | 1 |
+| `u4_dedup` | order / which duplicate kept | 1 | 1 |
+| `u5_argmax` | index when the max is tied | 1 | 1 |
+| `u6_median` | even-length convention / numeric type | **2** (15:5) | 1 |
+| `u7_most_common` | which element when modes are tied | 1 | **2** (17:3) |
+| `u8_top_k_indices` | indices on value ties + order | 1 | 1 |
+| `u9_parse_bool` | truthy vocabulary (non-canonical strings) | **2** (19:1) | 1 |
+| `m1_stats` (multi-file) | output schema / representation | **2** (10:10) | **4** (9:5:5:1) |
+| `m2_roman` (control) | none — fully specified | 1 | 1 |
 
-Validity was **1.00 everywhere** (all 100 runs produced acceptable output). Mean distinct behaviors:
-Option 1 **1.8** vs Option 2 **1.4**; mean behavioral consistency Option 1 **0.82** vs Option 2
-**0.92** — Option 1 is *less* consistent (more divergent).
+**Tasks that diverged: Option 1 → 5 (`u2,u3,u6,u9,m1`); Option 2 → 2 (`u7,m1`).**
 
-**What diverged, concretely:**
-- **`u2_round_all` (Option 1):** split between **banker's rounding** (half-to-even — `0.5→0`,
-  `2.5→2`; 7 runs) and **half-up** (`0.5→1`, `2.5→3`; 3 runs). Option 2 used one convention on all
-  10 runs. A textbook underspecified choice, resolved inconsistently only under LLM orchestration.
-- **`u1_rank_items` (Option 1):** two tie-break behaviors (9 vs 1), differing on a minority of
-  corpus inputs; Option 2 converged on one.
-- **`m1_stats` (both):** three behaviors, driven by **output representation** — dict keys
-  `min`/`max` vs `minimum`/`maximum`, and odd-length median typed as int `5` vs float `5.0`. The
-  underlying statistics agreed numerically; the *returned objects* differed.
-- **`u3_top_k`, `m2_roman`:** no divergence — the model has a single strong default for output
-  order, and the specified control is correct-and-identical every time.
+**What diverged, concretely** (from `analysis/divergence.py`):
+- **`u2_round_all`** (Opt 1): `4.5 → 4` (half-to-even, 19 runs) vs `4.5 → 5` (half-up, 1 run). A
+  genuine *value* difference. Option 2 used one convention on all 20.
+- **`u3_top_k`** (Opt 1): returned the k largest **sorted descending** (19) vs **in original input
+  order** (1). An ordering choice.
+- **`u6_median`** (Opt 1): odd-length median returned as **float `7.0`** (15) vs **int `7`** (5) —
+  same value, different numeric *type*.
+- **`u9_parse_bool`** (Opt 1): `"on" → True` (19) vs `"on" → False` (1) — a genuine semantic
+  (vocabulary) difference on a non-canonical string.
+- **`m1_stats`** (Opt 1): identical stats, but **with a `count` key** (10) vs **without** (10) — an
+  output-schema choice; the most evenly split of any task.
+- **`u7_most_common`** (Opt 2): mode-tie resolved to the **first-encountered** element (17) vs a
+  **different tied element** (3). Notably this is the one task where **Option 2 diverged but Option
+  1 did not**.
+- **`m1_stats`** (Opt 2): four behaviors from crossing two representation choices — keys `min`/`max`
+  vs `minimum`/`maximum`, and odd-length median `15.0` vs `15`.
 
 ## 4. Interpretation
 
-1. **Underspecification is the source of variability — now shown by construction.** Removing the
-   spec is exactly what makes behavioral divergence appear; the fully-specified control and the two
-   prior experiments show none. This confirms the cross-experiment thesis directly.
-2. **LLM orchestration amplifies it (first hypothesis support).** Given the *same* underspecified
-   task and the *same* model, the Claude Code agent (Option 1) made different free-choices across
-   runs where the bare generation call (Option 2) was internally consistent (`u1`, `u2`). The
-   agentic context — system prompt, tools, multi-step loop — appears to inject additional
-   variability into the unconstrained decisions. This is the divergence the first two experiments
-   were built to find and didn't, because their tasks were fully specified.
-3. **The divergence is in conventions, not correctness.** Every run was valid. What varied was
-   *which* acceptable convention (rounding mode) or *how* the result was packaged (key names, numeric
-   type) — the ungoverned surface, again, exactly as the triage experiment's free-text `summary`.
-4. **Multi-file structure alone does not cause divergence.** The specified two-file control
-   (`m2_roman`) was 1@1.00 in both conditions; divergence tracked *underspecification*, not file count.
+1. **Underspecification is the source of variability — shown by construction, across many tasks.**
+   Divergence appears only on underspecified tasks; the fully-specified control and both prior
+   experiments are flat. This nails the cross-experiment thesis.
+2. **LLM orchestration amplifies it (the hypothesis, supported).** Option 1 diverged on **5** axes
+   to Option 2's **2**. Given the same model and tasks, the Claude Code agent makes inconsistent
+   free-choices where the bare generation call is internally consistent (`u2,u3,u6,u9`). This is
+   the effect the first two experiments were built to find and couldn't, because their tasks were
+   fully specified.
+3. **But it is a tendency, not a law.** `u7_most_common` is a counterexample: only **Option 2**
+   diverged. And **4 of 9** single-axis tasks (`u1,u4,u5,u8`) never diverged in either condition —
+   the model has a strong shared default for some choices (e.g. argmax → first index, dedup →
+   first-seen order) and reliably picks it.
+4. **Splits are lopsided; defaults are strong.** Most divergent tasks split ~19:1 or 15:5 — a
+   dominant convention with occasional deviation — rather than a coin-flip. The exception is the
+   multi-file schema task (`m1`, 10:10 / 9:5:5:1), where there is no single obvious packaging.
+5. **The divergence is in conventions/representation, not correctness.** Validity was 1.00
+   everywhere. What varied was *which* acceptable convention (rounding mode, truthy vocabulary),
+   *how* a result was typed (`7` vs `7.0`), or *how* it was packaged (key names, extra keys) — the
+   ungoverned surface, exactly as the triage experiment's free-text `summary`.
+6. **Multi-file structure alone does not cause divergence** — the specified `m2_roman` control was
+   1@1.00 in both conditions; divergence tracked underspecification, not file count.
 
 ## 5. Limitations / threats to validity
 
-- **K=10, 5 tasks, one model.** Enough to demonstrate the effect and an Option-1 vs Option-2 gap,
-  but the gap is modest (1.8 vs 1.4 distinct behaviors) and would benefit from larger K and more
-  tasks before quantifying it.
-- **Contract permissiveness defines "valid."** A stricter or looser contract would change validity
-  (not the fingerprint counts). The contracts here accept the obvious acceptable behaviors and key
-  aliases; they encode the author's judgment of "acceptable."
-- **Behavioral equivalence is approximated** by the seeded corpus, and fingerprints are sensitive to
-  representation (e.g. `5` vs `5.0` count as different behaviors). That sensitivity is intentional
-  here — output representation is a real, observable behavior — but it means "divergence" includes
-  cosmetic-but-observable differences, not only differing computations.
+- **K=20, 11 tasks, one model.** Enough to show the effect and a clear Option-1 > Option-2 axis
+  count (5 vs 2), but the per-task splits are noisy at K=20 and the rare deviations (the "1" in
+  19:1) would need larger K to estimate reliably.
+- **The contract defines "valid."** A stricter/looser contract changes validity, not the
+  fingerprint counts. The contracts accept the obvious acceptable behaviors and key aliases.
+- **Fingerprints are representation-sensitive** (e.g. `7` vs `7.0`, an extra `count` key count as
+  distinct behaviors). That is intentional — output representation is observable behavior — but it
+  means "divergence" includes representational, not only computational, differences. The
+  per-axis characterization in §3 distinguishes the two.
 - **Fix-loop asymmetry** (Option 1 model-driven, Option 2 fixed protocol) biases validity, not the
   divergence comparison among valid runs.
 
@@ -113,13 +124,14 @@ Option 1 **1.8** vs Option 2 **1.4**; mean behavioral consistency Option 1 **0.8
 
 ```bash
 pip install -r ../requirements.txt
-python3 tools/run_tests.py --selftest          # all 5 references satisfy their own contracts
+python3 tools/run_tests.py --selftest          # all 11 references satisfy their own contracts
 source config/experiment.env
 python3 option2/run_option2.py --check         # one generation/task; prints model + fingerprint
 
-python3 option2/run_option2.py --reps 10 --workers 6 --out-dir "$PWD/results_full/option2"
-OUT_ROOT="$PWD/results_full/option1_default" WORKERS=5 bash option1/run_option1.sh 10
-python3 analysis/metrics.py --results-root results_full
+python3 option2/run_option2.py --reps 20 --workers 8 --out-dir "$PWD/results_full/option2"
+OUT_ROOT="$PWD/results_full/option1_default" WORKERS=5 bash option1/run_option1.sh 20
+python3 analysis/metrics.py     --results-root results_full   # validity / distinct behaviors / consistency
+python3 analysis/divergence.py  --results-root results_full   # diverging axis + split, with examples
 ```
 
 Run outputs (`results_full/`, including each run's saved solution directory) are git-ignored and

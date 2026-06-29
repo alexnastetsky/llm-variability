@@ -5,10 +5,13 @@ does an LLM that **orchestrates** produce more output variability than determini
 **drives** and calls the LLM only to generate? — but the workload is deliberately built to let
 variability appear: **underspecified** tasks (many correct behaviors) and **multi-file** tasks.
 
-📄 **Results: [`REPORT.md`](REPORT.md).** This is the experiment where divergence finally shows up —
-and where **Option 1 (Claude Code) diverges more than Option 2** on underspecified tasks, the first
-support for the original hypothesis. The divergence is in conventions/representation (rounding mode,
-dict key names, int-vs-float), not correctness — every run was valid.
+📄 **Results: [`REPORT.md`](REPORT.md).** This is the experiment where divergence finally shows up.
+At K=20 over 11 tasks (440 runs, all valid), divergence appeared on 6 tasks, and **Option 1 (Claude
+Code) diverged on more axes than Option 2 — 5 tasks vs 2** — the strongest support yet for the
+original hypothesis. The divergence is in conventions/representation (rounding mode, numeric type,
+output schema, truthy vocabulary), not correctness; splits are usually lopsided (a strong default
+deviated from occasionally). `analysis/divergence.py` auto-documents the diverging axis + split per
+task.
 
 ## Why this workload
 
@@ -26,12 +29,15 @@ There is no single correct answer, so grading flips:
   fingerprint = same behavior; **different fingerprints across runs = divergence**. The headline
   metric is the count of distinct fingerprints among valid runs.
 
-## The 5 tasks
+## The 11 tasks
 
-- **Underspecified, single-file:** `rank_items` (tie order free), `round_all` (half-rounding free),
-  `top_k` (output order free).
+- **9 underspecified single-file tasks**, each isolating one ambiguity axis: `rank_items` (tie
+  order), `round_all` (half-rounding), `top_k` (output order), `dedup` (order/which occurrence),
+  `argmax` (tie index), `median_of` (even-length convention), `most_common` (mode tie),
+  `top_k_indices` (indices on ties), `parse_bool` (truthy vocabulary). Each task's intended axis is
+  recorded in `data/cases.json`.
 - **Multi-file, underspecified:** `m1_stats` — `core.py` + `api.py` exposing `summary(nums)` (key
-  names, median-even convention, mean rounding all free).
+  names, median convention, numeric types all free).
 - **Multi-file, fully-specified control:** `m2_roman` — `core.py` + `api.py` exposing `to_roman(n)`;
   one correct behavior (tests whether multi-file structure alone causes divergence — it doesn't).
 
@@ -53,6 +59,7 @@ tools/record_run.py        build the graded run JSON from a solution directory
 option1/                   Claude Code runner (writes a solution dir): task_prompt.md, run_*.sh
 option2/run_option2.py     deterministic harness; multi-file response parsing; bounded fix loop
 analysis/metrics.py        distinct behaviors / behavioral consistency / validity per condition x case
+analysis/divergence.py     auto-characterizes the diverging axis + split (with examples) per task
 config/, common/           copied from codegen (self-contained)
 ```
 
@@ -64,7 +71,8 @@ python3 tools/run_tests.py --selftest
 source config/experiment.env
 python3 option2/run_option2.py --check
 
-python3 option2/run_option2.py --reps 10 --workers 6 --out-dir "$PWD/results_full/option2"
-OUT_ROOT="$PWD/results_full/option1_default" WORKERS=5 bash option1/run_option1.sh 10
-python3 analysis/metrics.py --results-root results_full
+python3 option2/run_option2.py --reps 20 --workers 8 --out-dir "$PWD/results_full/option2"
+OUT_ROOT="$PWD/results_full/option1_default" WORKERS=5 bash option1/run_option1.sh 20
+python3 analysis/metrics.py    --results-root results_full
+python3 analysis/divergence.py --results-root results_full   # diverging axis + split per task
 ```
