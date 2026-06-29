@@ -149,7 +149,8 @@ def evaluate(case_id, solution_dir, timeout_s=None):
     files, missing = _read_solution(solution_dir, meta["files"])
     text_sha = _sha(json.dumps({k: files[k] for k in sorted(files)}, sort_keys=True))
     struct_sha = _sha(json.dumps({k: structural_source(files[k]) for k in sorted(files)}, sort_keys=True))
-    base = {"case_id": case_id, "mode": meta["mode"], "files": files,
+    base = {"case_id": case_id, "kind": meta["kind"], "control": meta.get("control", False),
+            "multifile": meta.get("multifile", False), "files": files,
             "source_sha256": text_sha, "structural_sha256": struct_sha}
 
     def done(status, fingerprint, n_valid, valid, failures):
@@ -208,7 +209,8 @@ def _selftest():
     for cid in CASES:
         ref = os.path.join(DATA, "reference", cid)
         rec = evaluate(cid, ref)
-        print(f"[selftest] {cid} ({rec['mode']}): status={rec['status']} valid={rec['valid']} "
+        print(f"[selftest] {cid} ({rec['kind']}{', multifile' if rec['multifile'] else ''}): "
+              f"status={rec['status']} valid={rec['valid']} "
               f"({rec['n_valid']}/{rec['n_corpus']})")
         ok = ok and rec["valid"]
     print("SELFTEST OK" if ok else "SELFTEST FAILED")

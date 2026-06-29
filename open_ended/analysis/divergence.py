@@ -59,11 +59,12 @@ def analyze(results_root):
                 if isinstance(d, dict) and "_error" not in d and d.get("valid"):
                     groups[d["behavior_fingerprint"]].append(d)
             axis = CASES[cid]["axis"]
+            tag = " [CONTROL]" if CASES[cid].get("control") else ""
             if len(groups) <= 1:
-                print(f"  {cid:<16} 1 behavior  (axis: {axis})")
+                print(f"  {cid:<22}{tag} 1 behavior  (axis: {axis})")
                 continue
             sizes = sorted((len(v) for v in groups.values()), reverse=True)
-            print(f"  {cid:<16} {len(groups)} behaviors, split {sizes}  (axis: {axis})")
+            print(f"  {cid:<22}{tag} {len(groups)} behaviors, split {sizes}  (axis: {axis})")
             # replay representatives and find a distinguishing input
             reps = [v[0] for v in groups.values()]
             vecs = [_replay(cid, r["files"]) for r in reps]

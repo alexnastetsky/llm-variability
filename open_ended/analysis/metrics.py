@@ -28,6 +28,12 @@ CONDITIONS = [
 ]
 
 
+def label_for(cid):
+    m = CASES[cid]
+    parts = [m["kind"]] + (["multifile"] if m.get("multifile") else [])
+    return "/".join(parts) + (" [CONTROL]" if m.get("control") else "")
+
+
 def load_runs(cdir):
     runs = []
     if not os.path.isdir(cdir):
@@ -68,7 +74,7 @@ def analyze(cond_dir):
         distinct_text = len({r.get("source_sha256") for r in runs if isinstance(r, dict) and "_error" not in r})
         bkeys = [behav_key(r) for r in runs]
         per_case[cid] = dict(
-            n=n, mode=CASES[cid]["mode"], validity=len(valid) / n,
+            n=n, label=label_for(cid), validity=len(valid) / n,
             distinct_behav=distinct_behav, behav_consist=consistency(bkeys),
             distinct_text=distinct_text,
         )
@@ -87,9 +93,9 @@ def main():
             print(f"\n### {label}\n  (no results in {os.path.join(args.results_root, sub)})")
             continue
         print(f"\n### {label}")
-        print(f"  {'case':<16} {'mode':<24} {'N':>3} {'validity':>8} {'distinct_behav':>15} {'behav_consist':>14} {'distinct_text':>13}")
+        print(f"  {'case':<18} {'kind':<26} {'N':>3} {'validity':>8} {'distinct_behav':>15} {'behav_consist':>14} {'distinct_text':>13}")
         for cid, d in pc.items():
-            print(f"  {cid:<16} {d['mode']:<24} {d['n']:>3} {d['validity']:>8.2f} "
+            print(f"  {cid:<18} {d['label']:<26} {d['n']:>3} {d['validity']:>8.2f} "
                   f"{d['distinct_behav']:>15} {d['behav_consist']:>14.2f} {d['distinct_text']:>13}")
         summary.append((label, pc))
 
@@ -98,16 +104,16 @@ def main():
         print("COMPARISON — distinct behaviors among valid runs (>1 = the model diverged)")
         print("=" * 78)
         cases = list(CASES.keys())
-        print(f"  {'case':<16} {'mode':<24} " + "  ".join(lbl.split()[1] for lbl, _ in summary))
+        print(f"  {'case':<18} {'kind':<26} " + "  ".join(lbl.split()[1] for lbl, _ in summary))
         for cid in cases:
             cells = []
             for _, pc in summary:
                 d = pc.get(cid)
                 cells.append("-" if not d else f"{d['distinct_behav']}@{d['behav_consist']:.2f}")
-            print(f"  {cid:<16} {CASES[cid]['mode']:<24} " + "   ".join(f"{c:>10}" for c in cells))
+            print(f"  {cid:<18} {label_for(cid):<26} " + "   ".join(f"{c:>10}" for c in cells))
         print("\n  cell = <distinct behaviors among valid runs>@<modal behavioral consistency>")
         print("  underspecified tasks: distinct>1 means runs made different valid choices.")
-        print("  multifile_specified (m2_roman) is the control: one correct behavior, expect 1@1.00.")
+        print("  control tasks (kind=control, e.g. ctl1_roman, ctl2_reverse) have one correct behavior: expect 1@1.00.")
 
 
 if __name__ == "__main__":

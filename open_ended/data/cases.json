@@ -1,70 +1,112 @@
 {
   "u1_rank_items": {
-    "func_name": "rank_items", "entry": "solution", "mode": "underspecified",
+    "func_name": "rank_items", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def rank_items(items: list) -> list",
     "axis": "tie-break order among equal scores",
     "corpus_seed": 2101, "n_corpus": 200, "timeout_s": 5.0
   },
   "u2_round_all": {
-    "func_name": "round_all", "entry": "solution", "mode": "underspecified",
+    "func_name": "round_all", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def round_all(nums: list) -> list",
     "axis": "half-value rounding convention (half-even vs half-up vs ...)",
     "corpus_seed": 2102, "n_corpus": 200, "timeout_s": 5.0
   },
   "u3_top_k": {
-    "func_name": "top_k", "entry": "solution", "mode": "underspecified",
+    "func_name": "top_k", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def top_k(nums: list, k: int) -> list",
     "axis": "order of the returned k largest values",
     "corpus_seed": 2103, "n_corpus": 200, "timeout_s": 5.0
   },
   "u4_dedup": {
-    "func_name": "dedup", "entry": "solution", "mode": "underspecified",
+    "func_name": "dedup", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def dedup(items: list) -> list",
     "axis": "ordering / which duplicate occurrence is kept",
     "corpus_seed": 2106, "n_corpus": 200, "timeout_s": 5.0
   },
   "u5_argmax": {
-    "func_name": "argmax", "entry": "solution", "mode": "underspecified",
+    "func_name": "argmax", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def argmax(nums: list) -> int",
     "axis": "index returned when the maximum is tied (first vs last)",
     "corpus_seed": 2107, "n_corpus": 200, "timeout_s": 5.0
   },
   "u6_median": {
-    "func_name": "median_of", "entry": "solution", "mode": "underspecified",
+    "func_name": "median_of", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def median_of(nums: list) -> float",
     "axis": "even-length median convention (lower / upper / average)",
     "corpus_seed": 2108, "n_corpus": 200, "timeout_s": 5.0
   },
   "u7_most_common": {
-    "func_name": "most_common", "entry": "solution", "mode": "underspecified",
+    "func_name": "most_common", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def most_common(items: list) -> object",
     "axis": "which element is returned when modes are tied",
     "corpus_seed": 2109, "n_corpus": 200, "timeout_s": 5.0
   },
   "u8_top_k_indices": {
-    "func_name": "top_k_indices", "entry": "solution", "mode": "underspecified",
+    "func_name": "top_k_indices", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def top_k_indices(nums: list, k: int) -> list",
     "axis": "which indices on value ties, and their order",
     "corpus_seed": 2110, "n_corpus": 200, "timeout_s": 5.0
   },
   "u9_parse_bool": {
-    "func_name": "parse_bool", "entry": "solution", "mode": "underspecified",
+    "func_name": "parse_bool", "entry": "solution", "kind": "underspecified",
     "files": ["solution.py"], "signature": "def parse_bool(s: str) -> bool",
     "axis": "truthy vocabulary for non-canonical strings (yes/1/on/...)",
     "corpus_seed": 2111, "n_corpus": 200, "timeout_s": 5.0
   },
-  "m1_stats": {
-    "func_name": "summary", "entry": "api", "mode": "multifile_underspecified",
+  "u10_stats": {
+    "func_name": "summary", "entry": "api", "kind": "underspecified", "multifile": true,
     "files": ["core.py", "api.py"],
     "signature": "def summary(nums: list) -> dict   # in api.py, importing helpers from core.py",
     "axis": "output schema/representation (key names, numeric types, median convention)",
     "corpus_seed": 2104, "n_corpus": 200, "timeout_s": 5.0
   },
-  "m2_roman": {
-    "func_name": "to_roman", "entry": "api", "mode": "multifile_specified",
+  "u11_titlecase": {
+    "func_name": "titlecase", "entry": "solution", "kind": "underspecified",
+    "files": ["solution.py"], "signature": "def titlecase(s: str) -> str",
+    "axis": "which words are capitalized (small-word / article handling)",
+    "corpus_seed": 2112, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "u12_slugify": {
+    "func_name": "slugify", "entry": "solution", "kind": "underspecified",
+    "files": ["solution.py"], "signature": "def slugify(s: str) -> str",
+    "axis": "word separator and punctuation handling",
+    "corpus_seed": 2113, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "u13_initials": {
+    "func_name": "initials", "entry": "solution", "kind": "underspecified",
+    "files": ["solution.py"], "signature": "def initials(name: str) -> str",
+    "axis": "formatting of initials (periods / spacing / case)",
+    "corpus_seed": 2114, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "u14_camel_to_snake": {
+    "func_name": "camel_to_snake", "entry": "solution", "kind": "underspecified",
+    "files": ["solution.py"], "signature": "def camel_to_snake(s: str) -> str",
+    "axis": "where to split acronym / case-boundary runs",
+    "corpus_seed": 2115, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "u15_normalize_whitespace": {
+    "func_name": "normalize_whitespace", "entry": "solution", "kind": "underspecified",
+    "files": ["solution.py"], "signature": "def normalize_whitespace(s: str) -> str",
+    "axis": "trimming ends + which whitespace is collapsed",
+    "corpus_seed": 2116, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "u16_strip_punctuation": {
+    "func_name": "strip_punctuation", "entry": "solution", "kind": "underspecified",
+    "files": ["solution.py"], "signature": "def strip_punctuation(s: str) -> str",
+    "axis": "which punctuation is removed (apostrophes / hyphens kept?)",
+    "corpus_seed": 2117, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "ctl1_roman": {
+    "func_name": "to_roman", "entry": "api", "kind": "control", "control": true, "multifile": true,
     "files": ["core.py", "api.py"],
     "signature": "def to_roman(n: int) -> str   # in api.py, importing the symbol table from core.py",
     "axis": "none (fully specified control)",
     "corpus_seed": 2105, "n_corpus": 200, "timeout_s": 5.0
+  },
+  "ctl2_reverse": {
+    "func_name": "reverse_string", "entry": "solution", "kind": "control", "control": true,
+    "files": ["solution.py"], "signature": "def reverse_string(s: str) -> str",
+    "axis": "none (fully specified control)",
+    "corpus_seed": 2118, "n_corpus": 200, "timeout_s": 5.0
   }
 }
